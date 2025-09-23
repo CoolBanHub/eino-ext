@@ -379,7 +379,7 @@ func (c *CallbackHandler) OnStartWithStreamInput(ctx context.Context, info *call
 		return ctx
 	}
 
-	ctx, state := c.getOrInitState(ctx, getName(info), input)
+	ctx, state := c.getOrInitState(ctx, getName(info), nil)
 	if state == nil {
 		return ctx
 	}
@@ -490,6 +490,12 @@ func (c *CallbackHandler) OnStartWithStreamInput(ctx context.Context, info *call
 			log.Printf("marshal input error: %v, runinfo: %+v", err_, info)
 			return
 		}
+		_, err = c.cli.CreateTrace(&langfuse.TraceEventBody{
+			BaseEventBody: langfuse.BaseEventBody{
+				ID: state.traceID,
+			},
+			Input: in,
+		})
 		err = c.cli.EndSpan(&langfuse.SpanEventBody{
 			BaseObservationEventBody: langfuse.BaseObservationEventBody{
 				BaseEventBody: langfuse.BaseEventBody{
@@ -625,7 +631,10 @@ func (c *CallbackHandler) getOrInitState(ctx context.Context, curName string, in
 	if state != nil {
 		return ctx, state.(*langfuseState)
 	}
-	in, _ := sonic.MarshalString(input)
+	var in string
+	if input != nil {
+		in, _ = sonic.MarshalString(input)
+	}
 	traceOpts := ctx.Value(langfuseTraceOptionKey{})
 	if traceOpts != nil {
 		nState, err := initState(ctx, c.cli, in, traceOpts.(*traceOptions))
